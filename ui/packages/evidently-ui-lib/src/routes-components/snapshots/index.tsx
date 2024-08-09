@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import {
   Box,
   Button,
+  ButtonOwnProps,
   FormControlLabel,
   Grid,
   IconButton,
@@ -48,6 +49,7 @@ import type { ReportsLoaderData, TestSuitesLoaderData } from './data'
 import { MetadataModel } from '~/api/types'
 import { Delete as DeleteIcon } from '@mui/icons-material'
 import { z } from 'zod'
+import invariant from 'tiny-invariant'
 
 export const shouldRevalidate: ShouldRevalidateFunction = () => true
 
@@ -75,13 +77,25 @@ const metadataToOneString: (metadata: MetadataModel) => string = (metadata: Meta
     })
     .join(' ')
 
-export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites' }) => {
+export const SnapshotsListTemplate = ({
+  type,
+  slots
+}: {
+  type: 'reports' | 'test suites'
+  slots?: {
+    additionalSnapshotActions?: (args: { snapshotId: string; projectId: string }) => JSX.Element
+    ViewButton?: (args: { snapshotId: string; projectId: string }) => JSX.Element
+    donwloadButtonVariant?: ButtonOwnProps['variant']
+  }
+}) => {
   const { projectId } = useParams()
   const snapshots = useLoaderData() as LoaderData
   const matches = useMatches()
   const submit = useSubmit()
   const navigation = useNavigation()
   const isNavigation = navigation.state !== 'idle'
+
+  invariant(projectId, 'missing projectId')
 
   const [searchParams] = useSearchParams()
   const [sortByTimestamp, setSortByTimestamp] = useState<undefined | 'desc' | 'asc'>('desc')
@@ -248,7 +262,7 @@ export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites
                 Timestamp
               </TableSortLabel>
             </TableCell>
-            <TableCell>Actions</TableCell>
+            <TableCell align="center">Actions</TableCell>
           </TableRow>
           <TableRow></TableRow>
         </TableHead>
@@ -287,13 +301,26 @@ export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites
               </TableCell>
               <TableCell>
                 <Box display={'flex'} justifyContent={'center'} gap={1}>
-                  <Button disabled={isNavigation} component={RouterLink} to={`${snapshot.id}`}>
-                    View
-                  </Button>
+                  {slots?.ViewButton ? (
+                    <slots.ViewButton snapshotId={snapshot.id} projectId={projectId} />
+                  ) : (
+                    <Button disabled={isNavigation} component={RouterLink} to={`${snapshot.id}`}>
+                      View
+                    </Button>
+                  )}
+
                   <DownloadButton
+                    variant={slots?.donwloadButtonVariant || 'outlined'}
                     disabled={isNavigation}
                     downloadLink={`/api/projects/${projectId}/${snapshot.id}/download`}
                   />
+
+                  {slots?.additionalSnapshotActions && (
+                    <slots.additionalSnapshotActions
+                      snapshotId={snapshot.id}
+                      projectId={projectId}
+                    />
+                  )}
                   <Box>
                     <Tooltip title="delete snapshot" placement="top">
                       <IconButton

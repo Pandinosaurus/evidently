@@ -6,6 +6,7 @@ import logging
 import uuid
 from datetime import datetime
 from typing import IO
+from typing import Any
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -29,7 +30,8 @@ from evidently.base_metric import MetricResult
 from evidently.calculation_engine.engine import Engine
 from evidently.calculation_engine.engine import EngineDatasets
 from evidently.core import IncludeOptions
-from evidently.features.generated_features import GeneratedFeature
+from evidently.features.generated_features import FeatureResult
+from evidently.features.generated_features import GeneratedFeatures
 from evidently.options.base import AnyOptions
 from evidently.options.base import Options
 from evidently.renderers.base_renderer import DEFAULT_RENDERERS
@@ -40,8 +42,10 @@ from evidently.tests.base_test import Test
 from evidently.tests.base_test import TestParameters
 from evidently.tests.base_test import TestResult
 from evidently.tests.base_test import TestStatus
+from evidently.ui.datasets import inject_feature_types_in_column_mapping
 from evidently.ui.type_aliases import DatasetID
 from evidently.utils import NumpyEncoder
+from evidently.utils import data_preprocessing
 from evidently.utils.dashboard import SaveMode
 from evidently.utils.dashboard import SaveModeMap
 from evidently.utils.dashboard import TemplateParams
@@ -111,7 +115,7 @@ class Context:
     state: State
     renderers: RenderersDefinitions
     data: Optional[GenericInputData] = None
-    features: Optional[Dict[tuple, GeneratedFeature]] = None
+    features: Optional[Dict[GeneratedFeatures, FeatureResult]] = None
     options: Options = Options()
     data_definition: Optional["DataDefinition"] = None
     run_metadata: RunMetadata = dataclasses.field(default_factory=RunMetadata)
@@ -139,21 +143,24 @@ class Context:
             raise ValueError("Cannot get datasets when engine is not set")
         if self.data_definition is None:
             raise ValueError("Cannot get datasets when suite is not executed")
-        return self.engine.form_datasets(self.data, self.features, self.data_definition)
 
-    def set_features(self, features: Optional[Dict[tuple, GeneratedFeature]]):
+        return self.engine.form_datasets(
+            self.data, list(self.features.keys()) if self.features is not None else [], self.data_definition
+        )
+
+    def set_features(self, features: Optional[Dict[GeneratedFeatures, FeatureResult]]):
         if features is None:
             return
         self.features = features
-        for feature in features.values():
-            feature_name = feature.feature_name()
-            feature_class = feature_name.feature_class
-            self.run_metadata.descriptors[feature_name.name] = FeatureDefinition(
-                feature_name=feature_name.name,
-                display_name=feature_name.display_name,
-                feature_type=feature_class.feature_type,  # type: ignore[union-attr]
-                feature_class=feature_class.__class__.__name__,
-            )
+        for feature in features.keys():
+            for feature_column in feature.list_columns():
+                feature_class = feature_column.feature_class
+                self.run_metadata.descriptors[feature_column.name] = FeatureDefinition(
+                    feature_name=feature_column.name,
+                    display_name=feature_column.display_name,
+                    feature_type=feature_class.feature_type,  # type: ignore[union-attr]
+                    feature_class=feature_class.__class__.__name__,
+                )
 
 
 class ContextPayload(BaseModel):
@@ -543,7 +550,22 @@ class Snapshot(BaseModel):
 T = TypeVar("T", bound="ReportBase")
 
 
-class ReportBase(Display):
+class Runnable(abc.ABC):
+    @abc.abstractmethod
+    def run(
+        self,
+        *,
+        reference_data,
+        current_data,
+        column_mapping: Optional[ColumnMapping] = None,
+        engine: Optional[Type[Engine]] = None,
+        additional_data: Dict[str, Any] = None,
+        timestamp: Optional[datetime] = None,
+    ) -> None:
+        raise NotImplementedError
+
+
+class ReportBase(Display, Runnable):
     _inner_suite: Suite
     # collection of all possible common options
     options: Options
@@ -602,10 +624,20 @@ class ReportBase(Display):
             raise ValueError("Cannot create snapshot because of calculation error") from e
         return self._get_snapshot()
 
-    def datasets(self) -> EngineDatasets:
+    def datasets(self) -> EngineDatasets[Any]:
         return self._inner_suite.context.get_datasets()
 
-    def get_column_mapping(self):
-        if self._inner_suite.context.state != States.Calculated:
+    def get_column_mapping(self) -> ColumnMapping:
+        if (
+            self._inner_suite.context.state not in [States.Calculated, States.Tested]
+            or not self._inner_suite.context.data_definition
+        ):
             raise ValueError("Cannot get column mapping because report did not run")
-        return self._inner_suite.context.data.column_mapping
+        data_definition = self._inner_suite.context.data_definition
+        column_mapping = data_preprocessing.create_column_mapping(data_definition)
+        features_metadata = self._inner_suite.context.run_metadata.descriptors
+        column_mapping_with_descriptor = inject_feature_types_in_column_mapping(column_mapping, features_metadata)
+        return column_mapping_with_descriptor
+
+    def has_descriptors(self) -> bool:
+        return bool(self._inner_suite.context.run_metadata.descriptors)
