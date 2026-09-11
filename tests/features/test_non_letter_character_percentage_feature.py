@@ -1,8 +1,8 @@
 import pandas as pd
 
-from evidently.features.non_letter_character_percentage_feature import NonLetterCharacterPercentage
-from evidently.pipeline.column_mapping import ColumnMapping
-from evidently.utils.data_preprocessing import create_data_definition
+from evidently.legacy.features.non_letter_character_percentage_feature import NonLetterCharacterPercentage
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
+from evidently.legacy.utils.data_preprocessing import create_data_definition
 
 
 def test_non_letter_character_percentage():
@@ -14,4 +14,4 @@ def test_non_letter_character_percentage():
     )
 
     assert result.equals(pd.DataFrame(dict(column_1=[100 * 3 / 6, 0, 100])))
-    assert feature_generator.feature_name().display_name == "cl"
+    assert feature_generator.as_column().display_name == "cl"

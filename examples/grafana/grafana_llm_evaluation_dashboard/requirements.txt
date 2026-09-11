@@ -1,0 +1,15 @@
+tqdm
+requests
+joblib
+pyarrow
+pytz
+psycopg
+psycopg_binary
+evidently
+pandas
+numpy
+scikit-learn
+jupyter
+matplotlib
+openai
+evidently[llm]==0.7.21

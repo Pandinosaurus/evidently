@@ -3,14 +3,18 @@ import { useMemo, useState } from 'react'
 import {
   Box,
   Button,
+  type ButtonOwnProps,
+  Checkbox,
   FormControlLabel,
   Grid,
   IconButton,
+  Stack,
   Switch,
   Table,
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   TableSortLabel,
   TextField,
@@ -18,47 +22,27 @@ import {
   Typography
 } from '@mui/material'
 
-import {
-  Link as RouterLink,
-  useLoaderData,
-  useParams,
-  Outlet,
-  useMatches,
-  useSearchParams,
-  useSubmit,
-  useNavigation,
-  ShouldRevalidateFunction
-} from 'react-router-dom'
-
 import { useLocalStorage } from '@uidotdev/usehooks'
 
-import JsonView from 'react18-json-view'
-import 'react18-json-view/src/style.css'
-import './override-react18-json-view.css'
-
-import { TextWithCopyIcon } from '~/components/TextWithCopyIcon'
-import { DownloadButton } from '~/components/DownloadButton'
-import { HidedTags } from '~/components/HidedTags'
-import { crumbFunction } from '~/components/BreadCrumbs'
+import {
+  Delete as DeleteIcon,
+  FirstPage as FirstPageIcon,
+  KeyboardArrowLeft,
+  KeyboardArrowRight,
+  LastPage as LastPageIcon
+} from '@mui/icons-material'
 import { Autocomplete } from '@mui/material'
+import type { DownloadSnapshotURL, MetadataModel, ReportModel } from '~/api/types'
+import { DownloadButton } from '~/components/Actions/DownloadButton'
+import { HidedTags } from '~/components/Tags/HidedTags'
+import { JsonViewThemed } from '~/components/Utils/JsonView'
+import { TextWithCopyIcon } from '~/components/Utils/TextWithCopyIcon'
 import { useUpdateQueryStringValueWithoutNavigation } from '~/hooks/useUpdateQueryStringValueWithoutNavigation'
+
 import dayjs from 'dayjs'
-import { reloadSnapshotSchema, deleteSnapshotSchema } from './data'
-import type { ReportsLoaderData, TestSuitesLoaderData } from './data'
-import { MetadataModel } from '~/api/types'
-import { Delete as DeleteIcon } from '@mui/icons-material'
-import { z } from 'zod'
-
-export const shouldRevalidate: ShouldRevalidateFunction = () => true
-
-type LoaderData = ReportsLoaderData | TestSuitesLoaderData
-
-export const handle: { crumb: crumbFunction<LoaderData> } = {
-  crumb: (_, { pathname }) => ({
-    to: pathname,
-    linkText: pathname.split('/').reverse()[0] === 'reports' ? 'Reports' : 'Test Suites'
-  })
-}
+import 'dayjs/locale/en-gb'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+dayjs.extend(localizedFormat)
 
 const metadataToOneString: (metadata: MetadataModel) => string = (metadata: MetadataModel) =>
   Object.values(metadata)
@@ -75,25 +59,126 @@ const metadataToOneString: (metadata: MetadataModel) => string = (metadata: Meta
     })
     .join(' ')
 
-export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites' }) => {
-  const { projectId } = useParams()
-  const snapshots = useLoaderData() as LoaderData
-  const matches = useMatches()
-  const submit = useSubmit()
-  const navigation = useNavigation()
-  const isNavigation = navigation.state !== 'idle'
+const SnapshotNameAndID = (params: { name?: string | null; id: string }) => {
+  return (
+    <>
+      {params.name ? (
+        <Stack>
+          <Typography>{params.name}</Typography>
+          <Typography component={'div'} fontSize={'xx-small'}>
+            <TextWithCopyIcon showText={params.id} copyText={params.id} tooltip={'Copy ID'} />
+          </Typography>
+        </Stack>
+      ) : (
+        <TextWithCopyIcon showText={params.id} copyText={params.id} tooltip={'Copy ID'} />
+      )}
+    </>
+  )
+}
 
-  const [searchParams] = useSearchParams()
+type EmptyActionWrapperProps = {
+  children: React.ReactNode
+  snapshot: ReportModel
+}
+
+const EmptyActionWrapper = ({ children }: EmptyActionWrapperProps) => <>{children}</>
+
+type SnapshotActionsWrapperProps = {
+  query: Partial<Record<string, string>>
+  projectId: string
+  disabled?: boolean
+  snapshots: ReportModel[]
+  LinkToSnapshot: (props: { snapshotId: string; projectId: string }) => JSX.Element
+  ActionsWrapper?: ({
+    children,
+    snapshot
+  }: { children: React.ReactNode; snapshot: ReportModel }) => JSX.Element
+  slots?: {
+    additionalSnapshotActions?: (args: { snapshotId: string; projectId: string }) => JSX.Element
+    donwloadButtonVariant?: ButtonOwnProps['variant']
+  }
+  onReloadSnapshots: () => void
+  onDeleteSnapshot: ({ snapshotId }: { snapshotId: string }) => void
+  downloadLink: DownloadSnapshotURL
+  snapshotSelection?: { title: string; action: (snapshots: string[]) => void }
+}
+
+type TablePaginationActionsProps = {
+  count: number
+  page: number
+  rowsPerPage: number
+  onPageChange: (event: React.MouseEvent<HTMLButtonElement>, newPage: number) => void
+}
+
+function TablePaginationActions(props: TablePaginationActionsProps) {
+  const { count, page, rowsPerPage, onPageChange } = props
+
+  const handleFirstPageButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    onPageChange(event, 0)
+  }
+
+  const handleBackButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    onPageChange(event, page - 1)
+  }
+
+  const handleNextButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    onPageChange(event, page + 1)
+  }
+
+  const handleLastPageButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    onPageChange(event, Math.max(0, Math.ceil(count / rowsPerPage) - 1))
+  }
+
+  const isLastPage = page >= Math.ceil(count / rowsPerPage) - 1
+
+  return (
+    <Box flexShrink={0}>
+      <IconButton
+        onClick={handleFirstPageButtonClick}
+        disabled={page === 0}
+        aria-label='first page'
+      >
+        <FirstPageIcon />
+      </IconButton>
+      <IconButton onClick={handleBackButtonClick} disabled={page === 0} aria-label='previous page'>
+        <KeyboardArrowLeft />
+      </IconButton>
+      <IconButton onClick={handleNextButtonClick} disabled={isLastPage} aria-label='next page'>
+        <KeyboardArrowRight />
+      </IconButton>
+      <IconButton onClick={handleLastPageButtonClick} disabled={isLastPage} aria-label='last page'>
+        <LastPageIcon />
+      </IconButton>
+    </Box>
+  )
+}
+
+export const SnapshotsListTemplate = (props: SnapshotActionsWrapperProps) => {
+  const {
+    query,
+    slots,
+    snapshots,
+    disabled,
+    projectId,
+    LinkToSnapshot,
+    onReloadSnapshots,
+    onDeleteSnapshot,
+    downloadLink,
+    snapshotSelection,
+    ActionsWrapper = EmptyActionWrapper
+  } = props
+
   const [sortByTimestamp, setSortByTimestamp] = useState<undefined | 'desc' | 'asc'>('desc')
   const [isCollapsedJson, setIsCollapsedJson] = useLocalStorage('show-full-json-metadata', false)
-  const [selectedTags, setTags] = useState(() => searchParams.get('tags')?.split(',') || [])
-  const [metadataQuery, setMetadataQuery] = useState(() => searchParams.get('metadata-query') || '')
+  const [selectedTags, setTags] = useState(() => query.tags?.split(',') || [])
+  const [metadataQuery, setMetadataQuery] = useState(() => query['metadata-query'] || '')
+
+  // Pagination state
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   useUpdateQueryStringValueWithoutNavigation('tags', selectedTags.join(','))
   useUpdateQueryStringValueWithoutNavigation('metadata-query', String(metadataQuery))
-
-  // @ts-ignore
-  const hideSnapshotsList = matches.find(({ handle }) => handle?.hide?.snapshotList === true)
 
   const ALL_TAGS = useMemo(
     () => Array.from(new Set(snapshots.flatMap(({ tags }) => tags))),
@@ -138,33 +223,53 @@ export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites
     [filteredSnapshotsByMetadata, sortByTimestamp]
   )
 
-  if (hideSnapshotsList) {
-    return <Outlet />
+  // Paginate results
+  const paginatedSnapshots = useMemo(
+    () => resultSnapshots.slice(page * rowsPerPage, (page + 1) * rowsPerPage),
+    [resultSnapshots, page, rowsPerPage]
+  )
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage)
   }
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(Number.parseInt(event.target.value, 10))
+    setPage(0)
+  }
+
+  const [selectedSnapshots, setSelectedSnapshots] = useState<Set<string>>(new Set())
+  const isSnapshotSelected = (id: string) => selectedSnapshots.has(id)
 
   const FilterComponent = (
     <Box sx={{ padding: 2 }}>
-      <Grid container gap={2} alignItems={'flex-end'} justifyContent={'space-around'}>
-        <Grid item xs={12} md={4}>
+      <Grid container gap={2} alignItems={'flex-end'} justifyContent={'space-between'}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Autocomplete
             multiple
             limitTags={2}
             value={selectedTags}
-            onChange={(_, newSelectedTags) => setTags(newSelectedTags)}
+            onChange={(_, newSelectedTags) => {
+              setTags(newSelectedTags)
+              setPage(0)
+            }}
             options={ALL_TAGS}
             renderInput={(params) => (
-              <TextField {...params} variant="standard" label="Filter by Tags" />
+              <TextField {...params} variant='standard' label='Filter by Tags' />
             )}
           />
         </Grid>
-        <Grid item xs={12} md={7}>
+        <Grid size={{ xs: 12, md: 7 }}>
           <Box display={'flex'} alignItems={'flex-end'} gap={2}>
             <TextField
               fullWidth
               value={metadataQuery}
-              onChange={(event) => setMetadataQuery(event.target.value)}
-              variant="standard"
-              label="Search in Metadata"
+              onChange={(event) => {
+                setMetadataQuery(event.target.value)
+                setPage(0)
+              }}
+              variant='standard'
+              label='Search in Metadata'
             />
             <Box minWidth={220} display={'flex'} justifyContent={'center'}>
               <FormControlLabel
@@ -172,39 +277,64 @@ export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites
                   <Switch
                     checked={isCollapsedJson}
                     onChange={(event) => setIsCollapsedJson(event.target.checked)}
-                  ></Switch>
+                  />
                 }
-                label="Hide Metadata"
+                label='Hide Metadata'
               />
             </Box>
-            <Box display="flex" justifyContent="flex-end">
+            <Box display='flex' justifyContent='flex-end'>
               <Button
                 sx={{ minWidth: 160 }}
-                variant="outlined"
-                onClick={() =>
-                  submit(
-                    { action: 'reload-snapshots' } satisfies z.infer<typeof reloadSnapshotSchema>,
-                    { method: 'post', replace: true, encType: 'application/json' }
-                  )
-                }
-                color="primary"
-                disabled={isNavigation}
+                variant='outlined'
+                onClick={() => {
+                  onReloadSnapshots()
+                }}
+                color='primary'
+                disabled={disabled}
               >
-                refresh {type}
+                refresh reports
               </Button>
             </Box>
+            {snapshotSelection && (
+              <Box display='flex' justifyContent='flex-end'>
+                <Button
+                  sx={{ minWidth: 160 }}
+                  variant='outlined'
+                  onClick={() => {
+                    snapshotSelection.action(Array.from(selectedSnapshots.values()))
+                  }}
+                  color='primary'
+                  disabled={selectedSnapshots.size < 2}
+                >
+                  {snapshotSelection.title}
+                </Button>
+              </Box>
+            )}
           </Box>
         </Grid>
       </Grid>
     </Box>
   )
 
+  const TablePaginationComponent = (
+    <TablePagination
+      rowsPerPageOptions={[10, 30, 50]}
+      component='div'
+      count={resultSnapshots.length}
+      rowsPerPage={rowsPerPage}
+      page={page}
+      onPageChange={handleChangePage}
+      onRowsPerPageChange={handleChangeRowsPerPage}
+      ActionsComponent={TablePaginationActions}
+    />
+  )
+
   if (snapshots.length === 0) {
     return (
       <>
         {FilterComponent}
-        <Typography my={3} variant="h4" align="center">
-          You don't have any {type} yet.
+        <Typography my={3} variant='h4' align='center'>
+          You don't have any reports yet.
         </Typography>
       </>
     )
@@ -213,16 +343,12 @@ export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites
   return (
     <>
       {FilterComponent}
+      {TablePaginationComponent}
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>
-              {type === 'reports'
-                ? 'Report ID'
-                : type === 'test suites'
-                ? 'Test Suite ID'
-                : 'indefined'}
-            </TableCell>
+            {snapshotSelection && <TableCell />}
+            <TableCell>Report ID</TableCell>
             <TableCell>Tags</TableCell>
             <TableCell>Metadata</TableCell>
             <TableCell>
@@ -231,32 +357,46 @@ export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites
                 direction={sortByTimestamp}
                 onClick={() => {
                   setSortByTimestamp((prev) => {
+                    let next: typeof prev
                     if (prev === undefined) {
-                      return 'desc'
+                      next = 'desc'
+                    } else if (prev === 'desc') {
+                      next = 'asc'
+                    } else {
+                      next = undefined
                     }
-
-                    if (prev === 'desc') {
-                      return 'asc'
-                    }
-
-                    if (prev === 'asc') {
-                      return undefined
-                    }
+                    setPage(0)
+                    return next
                   })
                 }}
               >
                 Timestamp
               </TableSortLabel>
             </TableCell>
-            <TableCell>Actions</TableCell>
+            <TableCell align='center'>Actions</TableCell>
           </TableRow>
-          <TableRow></TableRow>
+          <TableRow />
         </TableHead>
         <TableBody>
-          {resultSnapshots.map((snapshot) => (
+          {paginatedSnapshots.map((snapshot) => (
             <TableRow key={`r-${snapshot.id}`}>
+              {snapshotSelection && (
+                <TableCell padding='checkbox'>
+                  <Checkbox
+                    color='primary'
+                    checked={isSnapshotSelected(snapshot.id)}
+                    onChange={() =>
+                      setSelectedSnapshots((prev) => {
+                        const newSet = new Set(prev)
+                        prev.has(snapshot.id) ? newSet.delete(snapshot.id) : newSet.add(snapshot.id)
+                        return newSet
+                      })
+                    }
+                  />
+                </TableCell>
+              )}
               <TableCell>
-                <TextWithCopyIcon showText={snapshot.id} copyText={snapshot.id} />
+                <SnapshotNameAndID id={snapshot.id} name={snapshot.name} />
               </TableCell>
               <TableCell>
                 <Box maxWidth={250}>
@@ -273,54 +413,65 @@ export const SnapshotsListTemplate = ({ type }: { type: 'reports' | 'test suites
                 </Box>
               </TableCell>
               <TableCell>
-                <JsonView
+                <JsonViewThemed
                   collapsed={isCollapsedJson}
-                  src={snapshot.metadata}
-                  theme="atom"
+                  value={snapshot.metadata}
                   enableClipboard={false}
                 />
               </TableCell>
               <TableCell>
-                <Typography variant="body2">
+                <Typography variant='body2'>
                   {dayjs(snapshot.timestamp).locale('en-gb').format('llll')}
                 </Typography>
               </TableCell>
               <TableCell>
                 <Box display={'flex'} justifyContent={'center'} gap={1}>
-                  <Button disabled={isNavigation} component={RouterLink} to={`${snapshot.id}`}>
-                    View
-                  </Button>
-                  <DownloadButton
-                    disabled={isNavigation}
-                    downloadLink={`/api/projects/${projectId}/${snapshot.id}/download`}
-                  />
-                  <Box>
-                    <Tooltip title="delete snapshot" placement="top">
-                      <IconButton
-                        onClick={() => {
-                          if (confirm('Are you sure?') === true) {
-                            submit(
-                              {
-                                action: 'delete-snapshot',
-                                snapshotId: snapshot.id
-                              } satisfies z.infer<typeof deleteSnapshotSchema>,
-                              { method: 'post', replace: true, encType: 'application/json' }
-                            )
-                          }
-                        }}
-                        color="primary"
-                        disabled={isNavigation}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
+                  <ActionsWrapper snapshot={snapshot}>
+                    <>
+                      <LinkToSnapshot snapshotId={snapshot.id} projectId={projectId} />
+
+                      <DownloadButton
+                        variant={slots?.donwloadButtonVariant || 'outlined'}
+                        disabled={disabled ?? false}
+                        downloadLink={
+                          // TODO: better type safety here
+                          String(downloadLink)
+                            .replace('{project_id}', projectId)
+                            .replace('{snapshot_id}', snapshot.id)
+                        }
+                      />
+
+                      {slots?.additionalSnapshotActions && (
+                        <slots.additionalSnapshotActions
+                          snapshotId={snapshot.id}
+                          projectId={projectId}
+                        />
+                      )}
+
+                      <Box>
+                        <Tooltip title='delete snapshot' placement='top'>
+                          <span>
+                            <IconButton
+                              onClick={() => {
+                                onDeleteSnapshot({ snapshotId: snapshot.id })
+                              }}
+                              color='primary'
+                              disabled={disabled}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                    </>
+                  </ActionsWrapper>
                 </Box>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      {TablePaginationComponent}
     </>
   )
 }

@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from evidently.metrics import FBetaTopKMetric
-from evidently.pipeline.column_mapping import ColumnMapping
-from evidently.pipeline.column_mapping import RecomType
-from evidently.report import Report
+from evidently.legacy.metrics import FBetaTopKMetric
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
+from evidently.legacy.pipeline.column_mapping import RecomType
+from evidently.legacy.report import Report
 
 
 def test_fbeta_values():
@@ -23,9 +23,9 @@ def test_fbeta_values():
 
     results = metric.get_result()
     assert len(results.current) == 3
-    assert results.current[1] == 0.5
-    assert np.isclose(results.current[2], 0.33333333333333)
-    assert np.isclose(results.current[3], 0.49999962499990)
+    assert results.current[0] == 0.5
+    assert np.isclose(results.current[1], 0.33333333333333)
+    assert np.isclose(results.current[2], 0.49999962499990)
 
 
 def test_fbeta_scores():
@@ -44,9 +44,9 @@ def test_fbeta_scores():
 
     results = metric.get_result()
     assert len(results.current) == 3
-    assert results.current[1] == 0.5
-    assert np.isclose(results.current[2], 0.33333333333333)
-    assert np.isclose(results.current[3], 0.49999962499990)
+    assert results.current[0] == 0.5
+    assert np.isclose(results.current[1], 0.33333333333333)
+    assert np.isclose(results.current[2], 0.49999962499990)
 
 
 def test_fbeta_scores_include_no_feedback():
@@ -65,6 +65,6 @@ def test_fbeta_scores_include_no_feedback():
 
     results = metric.get_result()
     assert len(results.current) == 3
-    assert np.isclose(results.current[1], 0.33333333333)
-    assert np.isclose(results.current[2], 0.22222222222)
-    assert np.isclose(results.current[3], 0.33333333333)
+    assert np.isclose(results.current[0], 0.33333333333)
+    assert np.isclose(results.current[1], 0.22222222222)
+    assert np.isclose(results.current[2], 0.33333333333)

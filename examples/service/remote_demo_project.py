@@ -1,16 +1,17 @@
-from evidently.ui.demo_project import DEMO_PROJECT_NAME, create_demo_project
-from evidently.ui.remote import RemoteWorkspace
-
+from evidently.ui.workspace import RemoteWorkspace
+from evidently.ui.service.demo_projects import DEMO_PROJECTS
+DEMO_PROJECT_NAME = "bikes"
 
 def main():
     workspace = "http://localhost:8000"
     ws = RemoteWorkspace(workspace)
-    has_demo_project = any(p.name == DEMO_PROJECT_NAME for p in ws.list_projects())
+    demo_project = DEMO_PROJECTS[DEMO_PROJECT_NAME]
+    has_demo_project = any(p.name == demo_project.name for p in ws.list_projects())
     if not has_demo_project:
         print("Generating demo project...")
-        create_demo_project(ws)
+        demo_project.create(ws)
 
-    demo_project = ws.search_project(DEMO_PROJECT_NAME)[0]
+    demo_project = ws.search_project(demo_project.name)[0]
     print(demo_project.id)
 
 

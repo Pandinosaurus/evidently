@@ -1,4 +1,6 @@
 import dataclasses
+import pathlib
+import shutil
 from enum import Enum
 from typing import Any
 from typing import List
@@ -9,7 +11,7 @@ import pandas as pd
 from sklearn import datasets
 from sklearn import ensemble
 
-from evidently.pipeline.column_mapping import ColumnMapping
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
 
 
 class DatasetTags(Enum):
@@ -105,8 +107,9 @@ def bcancer_label():
 
 @dataset
 def adult():
-    adult_data = datasets.fetch_openml(name="adult", version=2, as_frame=True)
-    adult = adult_data.frame
+    adult = pd.read_parquet(
+        pathlib.Path(__file__).parent.joinpath("../../test_data/adults.parquet"),
+    )
     adult.education = adult.education.astype(object)
 
     adult_ref = adult[~adult.education.isin(["Some-college", "HS-grad", "Bachelors"])]
@@ -118,6 +121,9 @@ def adult():
 
 @dataset
 def housing():
+    shutil.copy(
+        pathlib.Path(__file__).resolve().parents[2] / "test_data" / "cal_housing_py3.pkz", datasets.get_data_home()
+    )
     housing_data = datasets.fetch_california_housing(as_frame=True)
     housing = housing_data.frame
 
@@ -136,10 +142,9 @@ def housing():
 
 @dataset
 def reviews():
-    reviews_data = datasets.fetch_openml(name="Womens-E-Commerce-Clothing-Reviews", version=2, as_frame=True)
-    reviews = reviews_data.frame
-
-    # In[ ]:
+    reviews = pd.read_parquet(
+        pathlib.Path(__file__).parent.joinpath("../../test_data/reviews.parquet"),
+    )
 
     reviews["prediction"] = reviews["Rating"]
     reviews_ref = reviews[reviews.Rating > 3].sample(

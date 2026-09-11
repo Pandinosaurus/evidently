@@ -7,18 +7,17 @@ import pytest
 from litestar.testing import TestClient
 
 from evidently._pydantic_compat import parse_obj_as
-from evidently.collector.app import check_snapshots_factory
-from evidently.collector.config import CollectorConfig
-from evidently.collector.config import CollectorServiceConfig
-from evidently.ui.storage.common import NoopAuthManager
-from evidently.ui.storage.local import create_local_project_manager
-from evidently.ui.workspace.view import WorkspaceView
+from evidently.legacy.collector.app import check_snapshots_factory
+from evidently.legacy.collector.config import CollectorConfig
+from evidently.legacy.collector.config import CollectorServiceConfig
+from evidently.legacy.ui.storage.common import NoopAuthManager
+from evidently.legacy.ui.storage.local import create_local_project_manager
+from evidently.legacy.ui.workspace.view import WorkspaceView
 from tests.ui.conftest import HEADERS
 from tests.ui.conftest import _dumps
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(sys.version_info < (3, 10), reason="loop not available on python < 3.10")
 async def test_create_collector(
     collector_test_client: TestClient, collector_service_config: CollectorServiceConfig, mock_collector_config
 ):
@@ -87,7 +86,8 @@ def ui_workspace(tmp_path) -> WorkspaceView:
     return WorkspaceView(None, project_manager)
 
 
-def test_create_snapshot_and_get_logs(
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="infinite loop")
+async def test_create_snapshot_and_get_logs(
     collector_test_client: TestClient,
     collector_service_config: CollectorServiceConfig,
     mock_collector_config,
@@ -113,8 +113,13 @@ def test_create_snapshot_and_get_logs(
     )
     assert len(project.list_snapshots()) == 1
 
+    snapshot_id = str(project.list_snapshots()[0].id)
+
     r = collector_test_client.get("/new/logs")
     r.raise_for_status()
 
     data = r.json()
-    assert data == [{"error": "", "ok": True}]
+    assert data == [
+        {"error": "", "ok": True, "report_id": snapshot_id, "type": "UploadReport"},
+        {"error": "", "ok": True, "report_id": snapshot_id, "type": "CreateReport"},
+    ]

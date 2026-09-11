@@ -11,7 +11,7 @@ from _pytest.mark import Mark
 from _pytest.mark import ParameterSet
 from _pytest.python import Metafunc
 
-from evidently.base_metric import Metric
+from evidently.legacy.base_metric import Metric
 from tests.multitest.conftest import TestOutcome
 from tests.multitest.datasets import DatasetTags
 from tests.multitest.datasets import TestDataset
@@ -26,7 +26,7 @@ _code_cache: Dict[str, List[str]] = {}
 if hasattr(dataclasses, "KW_ONLY"):
     dec = dataclasses.dataclass(kw_only=True)
 else:
-    dec = dataclasses.dataclass
+    dec = dataclasses.dataclass()
 
 
 @dec

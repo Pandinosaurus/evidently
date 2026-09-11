@@ -1,25 +1,30 @@
+import pathlib
+import shutil
+
 import numpy as np
 import numpy.testing
+import pandas as pd
 import pytest
 from sklearn import datasets
 from sklearn import ensemble
 
-from evidently.test_preset import BinaryClassificationTestPreset
-from evidently.test_preset import BinaryClassificationTopKTestPreset
-from evidently.test_preset import DataDriftTestPreset
-from evidently.test_preset import DataQualityTestPreset
-from evidently.test_preset import DataStabilityTestPreset
-from evidently.test_preset import MulticlassClassificationTestPreset
-from evidently.test_preset import NoTargetPerformanceTestPreset
-from evidently.test_preset import RegressionTestPreset
-from evidently.test_suite import TestSuite
+from evidently.legacy.test_preset import BinaryClassificationTestPreset
+from evidently.legacy.test_preset import BinaryClassificationTopKTestPreset
+from evidently.legacy.test_preset import DataDriftTestPreset
+from evidently.legacy.test_preset import DataQualityTestPreset
+from evidently.legacy.test_preset import DataStabilityTestPreset
+from evidently.legacy.test_preset import MulticlassClassificationTestPreset
+from evidently.legacy.test_preset import NoTargetPerformanceTestPreset
+from evidently.legacy.test_preset import RegressionTestPreset
+from evidently.legacy.test_suite import TestSuite
 from tests.conftest import slow
 
 
 @pytest.fixture
 def adult():
-    adult_data = datasets.fetch_openml(name="adult", version=2, as_frame=True)
-    adult = adult_data.frame
+    adult = pd.read_parquet(
+        pathlib.Path(__file__).parent.joinpath("../../test_data/adults.parquet"),
+    )
 
     adult_ref = adult[~adult.education.isin(["Some-college", "HS-grad", "Bachelors"])]
     adult_cur = adult[adult.education.isin(["Some-college", "HS-grad", "Bachelors"])]
@@ -30,6 +35,9 @@ def adult():
 
 @pytest.fixture
 def housing():
+    shutil.copy(
+        pathlib.Path(__file__).resolve().parents[2] / "test_data" / "cal_housing_py3.pkz", datasets.get_data_home()
+    )
     housing_data = datasets.fetch_california_housing(as_frame=True)
     housing = housing_data.frame
 

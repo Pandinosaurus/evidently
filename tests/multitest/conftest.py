@@ -12,14 +12,13 @@ from typing import Type
 from typing import TypeVar
 from typing import Union
 
-from pydantic import BaseModel
-
 import evidently
-from evidently.base_metric import Metric
-from evidently.base_metric import MetricResult
+from evidently._pydantic_compat import BaseModel
+from evidently.legacy.base_metric import Metric
+from evidently.legacy.base_metric import MetricResult
+from evidently.legacy.report import Report
+from evidently.legacy.utils.types import ApproxValue
 from evidently.pydantic_utils import PolymorphicModel
-from evidently.report import Report
-from evidently.utils.types import ApproxValue
 from tests.conftest import smart_assert_equal
 
 
@@ -109,6 +108,9 @@ T = TypeVar("T", bound=BaseModel)
 
 def make_approx_type(cls: Type[T], ignore_not_set: bool = False) -> Type[T]:
     class ApproxFields(cls):
+        class Config:
+            alias_required = False
+
         __ignore_not_set__ = ignore_not_set
         __annotations__ = {
             k: Union[ApproxValue, f.type_]

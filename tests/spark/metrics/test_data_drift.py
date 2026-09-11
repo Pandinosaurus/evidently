@@ -7,23 +7,23 @@ import pandas as pd
 import pytest
 from pyspark.sql import SparkSession
 
-from evidently import ColumnMapping
-from evidently.base_metric import ColumnName
-from evidently.metric_results import DatasetColumns
-from evidently.metric_results import DatasetUtilityColumns
-from evidently.metrics import ColumnDriftMetric
-from evidently.metrics import DataDriftTable
-from evidently.report import Report
-from evidently.spark.engine import SparkEngine
-from evidently.tests.utils import approx
+from evidently.legacy.base_metric import ColumnName
+from evidently.legacy.metric_results import DatasetColumns
+from evidently.legacy.metric_results import DatasetUtilityColumns
+from evidently.legacy.metrics import ColumnDriftMetric
+from evidently.legacy.metrics import DataDriftTable
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
+from evidently.legacy.report import Report
+from evidently.legacy.spark.engine import SparkEngine
+from evidently.legacy.tests.utils import approx
 from tests.conftest import slow
 from tests.conftest import smart_assert_equal
 
 
 @slow
 @pytest.mark.skipif(
-    (sys.version_info.major, sys.version_info.minor) == (3, 12) and sys.platform.startswith("win"),
-    reason="on Windows 2022 with python 3.12 pyspark package is broken",
+    sys.platform.startswith("win") or sys.platform == "darwin",
+    reason="skip spark on Windows and MacOS",
 )
 @pytest.mark.parametrize(
     "metric,column_mapping,result_adjust",
@@ -96,7 +96,7 @@ from tests.conftest import smart_assert_equal
     ],
 )
 def test_column_data_drift(metric, column_mapping, result_adjust):
-    from evidently.options.data_drift import DataDriftOptions
+    from evidently.legacy.options.data_drift import DataDriftOptions
 
     DataDriftOptions.__fields__["nbinsx"].default = 2
 

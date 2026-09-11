@@ -1,60 +1,69 @@
 import {
-  AdditionalGraphInfo,
-  BigTableWidgetParams,
-  CounterWidgetParams,
-  RichDataParams,
-  MultiTabGraphWidgetParams,
-  MultiTabWidgetParams,
-  PercentWidgetParams,
-  TableWidgetParams,
-  WidgetGroupParams,
-  WidgetListParams,
-  WidgetInfo,
-  WidgetSize,
-  TextWidgetParams,
-  TestSuiteWidgetParams
+  type AdditionalGraphInfo,
+  type BigTableWidgetParams,
+  type CounterWidgetParams,
+  type MultiTabGraphWidgetParams,
+  type MultiTabWidgetParams,
+  type PercentWidgetParams,
+  type RichDataParams,
+  type TableWidgetParams,
+  type TestSuiteWidgetParams,
+  type TextWidgetParams,
+  type WidgetGroupParams,
+  type WidgetInfo,
+  type WidgetListParams,
+  WidgetSize
 } from '~/api'
 
-import Widget from './Widget'
-import CounterWidgetContent from './CounterWidgetContent'
-import ProgressWidgetContent from './ProgressWidgetContent'
 import BigGraphWidgetContent from './BigGraphWidgetContent'
-import WidgetPanel from './WidgetPanel'
-import NotImplementedWidgetContent from './NotImplementedWidgetContent'
-import TabbedGraphWidgetContent from './TabbedGraphWidgetContent'
-import TableWidgetContent from './TableWidgetContent'
 import BigTableWidgetContent from './BigTableWidget/BigTableWidgetContent'
-import TabbedWidgetContent from './TabbedWidgetContent'
+import CounterWidgetContent from './CounterWidgetContent'
+import NotImplementedWidgetContent from './NotImplementedWidgetContent'
+import ProgressWidgetContent from './ProgressWidgetContent'
+import { RenderPlotlyPIE } from './RenderPlotlyPIE'
 import RichDataWidget from './RichDataWidget'
-import WidgetList from './WidgetList'
-import TextWidgetContent from './TextWidgetContent'
+import TabbedGraphWidgetContent from './TabbedGraphWidgetContent'
+import TabbedWidgetContent from './TabbedWidgetContent'
+import TableWidgetContent from './TableWidgetContent'
 import TestSuiteWidgetContent from './TestSuiteWidget/TestSuiteWidgetContent'
+import TextWidgetContent from './TextWidgetContent'
+import Widget from './Widget'
+import WidgetList from './WidgetList'
+import WidgetPanel from './WidgetPanel'
 
 function sizeTransform(size: WidgetSize): 1 | 3 | 6 | 12 {
   if (size === WidgetSize.Small) {
     return 3
-  } else if (size === WidgetSize.Medium) {
+  }
+
+  if (size === WidgetSize.Medium) {
     return 6
-  } else if (size === WidgetSize.Big) {
+  }
+
+  if (size === WidgetSize.Big) {
     return 12
   }
+
   return 12
 }
 
-export function WidgetRenderer(
-  key: string,
-  info: WidgetInfo,
-  ItemWrapper?: ({ id, children }: { id: string; children: React.ReactNode }) => React.ReactNode
-) {
+export function WidgetRenderer({ info }: { info: WidgetInfo }) {
   let content = <NotImplementedWidgetContent />
   if (info.type === 'counter') {
     content = <CounterWidgetContent {...(info.params as CounterWidgetParams)} />
   } else if (info.type === 'percent') {
     content = <ProgressWidgetContent {...(info.params as PercentWidgetParams)} />
   } else if (info.type === 'big_graph') {
-    content = (
-      <BigGraphWidgetContent {...(info.params as AdditionalGraphInfo)} widgetSize={info.size} />
-    )
+    if (
+      (info.params as AdditionalGraphInfo)?.data?.length === 1 &&
+      (info.params as AdditionalGraphInfo)?.data?.every(({ type }) => type === 'pie')
+    ) {
+      content = <RenderPlotlyPIE {...(info.params as AdditionalGraphInfo)} widgetSize={info.size} />
+    } else {
+      content = (
+        <BigGraphWidgetContent {...(info.params as AdditionalGraphInfo)} widgetSize={info.size} />
+      )
+    }
   } else if (info.type === 'tabbed_graph') {
     content = (
       <TabbedGraphWidgetContent
@@ -79,9 +88,9 @@ export function WidgetRenderer(
   } else if (info.type === 'group') {
     content = (
       <WidgetPanel>
-        {(info as unknown as WidgetGroupParams).widgets.map((wi, idx) =>
-          WidgetRenderer(`wi_${idx}`, wi)
-        )}
+        {(info as unknown as WidgetGroupParams).widgets.map((wi) => (
+          <WidgetRenderer key={wi.id} info={wi} />
+        ))}
       </WidgetPanel>
     )
   } else if (info.type === 'rich_data') {
@@ -97,7 +106,7 @@ export function WidgetRenderer(
     content = <TestSuiteWidgetContent {...(info.params as TestSuiteWidgetParams)} />
   }
   return (
-    <Widget key={key} size={sizeTransform(info.size)} ItemWrapper={ItemWrapper}>
+    <Widget size={sizeTransform(info.size)}>
       {{
         ...info,
         content: content

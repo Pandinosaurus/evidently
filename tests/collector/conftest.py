@@ -1,6 +1,5 @@
 import datetime
 import os
-import uuid
 from typing import Dict
 
 import pandas as pd
@@ -8,17 +7,18 @@ import pytest
 from litestar import get
 from litestar.testing import TestClient
 
-from evidently.collector.app import create_app
-from evidently.collector.config import CollectorConfig
-from evidently.collector.config import CollectorServiceConfig
-from evidently.collector.config import ReportConfig
-from evidently.collector.config import RowsCountTrigger
-from evidently.core import IncludeOptions
-from evidently.options.base import Options
-from evidently.suite.base_suite import ContextPayload
-from evidently.suite.base_suite import ReportBase
-from evidently.suite.base_suite import Snapshot
-from evidently.suite.base_suite import Suite
+from evidently.legacy.collector.app import create_app
+from evidently.legacy.collector.config import CollectorConfig
+from evidently.legacy.collector.config import CollectorServiceConfig
+from evidently.legacy.collector.config import ReportConfig
+from evidently.legacy.collector.config import RowsCountTrigger
+from evidently.legacy.core import IncludeOptions
+from evidently.legacy.core import new_id
+from evidently.legacy.options.base import Options
+from evidently.legacy.suite.base_suite import ContextPayload
+from evidently.legacy.suite.base_suite import ReportBase
+from evidently.legacy.suite.base_suite import Snapshot
+from evidently.legacy.suite.base_suite import Suite
 from tests.ui.test_app import MockMetric
 from tests.ui.test_app import MockMetricResult
 
@@ -55,9 +55,13 @@ def collector_workspace(collector_test_client) -> str:
 
 
 class ReportBaseMock(ReportBase):
+    def __init__(self):
+        super().__init__()
+        self.id = new_id()
+
     def to_snapshot(self):
         return Snapshot(
-            id=uuid.uuid4(),
+            id=self.id,
             name="mock",
             timestamp=datetime.datetime.now(),
             metadata={},

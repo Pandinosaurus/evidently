@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
-import { TestDataInfo, TestState } from '~/api'
-import { Button, Collapse, Alert, AlertTitle, AlertColor, Box } from '@mui/material'
+import { type AlertColor, AlertTitle, Box, Button, Collapse } from '@mui/material'
+import type React from 'react'
+import { useState } from 'react'
+import type { TestDataInfo, TestState } from '~/api'
 
-import { BigTableDetails } from '~/widgets/BigTableWidget/BigTableDetails'
 import ReactMarkdown from 'react-markdown'
+import { AlertThemed } from '~/components/Alert/AlertThemed'
+import { BigTableDetails } from '~/widgets/BigTableWidget/BigTableDetails'
 
 const availableStates: TestState[] = ['unknown', 'success', 'warning', 'fail']
 
@@ -31,14 +33,14 @@ const TestData: React.FC<TestDataInfo> = ({ title, description, state, details }
   return (
     <>
       <Box>
-        <Alert
+        <AlertThemed
           severity={StateToSeverity(state)}
           action={
             isDetailsAvailable ? (
               <Button
                 onClick={() => setDetailsPart((prev) => ({ active: !prev.active }))}
-                color="inherit"
-                size="small"
+                color='inherit'
+                size='small'
               >
                 Details
               </Button>
@@ -47,13 +49,13 @@ const TestData: React.FC<TestDataInfo> = ({ title, description, state, details }
         >
           <AlertTitle>{title}</AlertTitle>
           <ReactMarkdown>{description}</ReactMarkdown>
-        </Alert>
+        </AlertThemed>
         {!isDetailsAvailable ? (
           <></>
         ) : (
           <Collapse in={detailsPart.active} mountOnEnter={true} unmountOnExit={true}>
             <Box style={{ padding: '2px' }}>
-              <BigTableDetails details={details!} widgetSize={2} />
+              <BigTableDetails details={details} widgetSize={2} />
             </Box>
           </Collapse>
         )}

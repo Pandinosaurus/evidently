@@ -3,8 +3,10 @@ import pandas as pd
 import pytest
 
 from evidently._pydantic_compat import BaseModel
+from evidently._pydantic_compat import import_string
+from evidently.legacy.utils.types import ApproxValue
+from evidently.pydantic_utils import TYPE_ALIASES
 from evidently.pydantic_utils import PolymorphicModel
-from evidently.utils.types import ApproxValue
 
 # for np.testing.assert_equal to work with ApproxValue
 np.core.numeric.ScalarType = np.core.numeric.ScalarType + (ApproxValue,)  # type: ignore[attr-defined]
@@ -56,3 +58,14 @@ def smart_assert_equal(actual, expected, path=""):
 
 
 slow = pytest.mark.slow
+
+
+def load_all_subtypes(base_class):
+    classpaths = [
+        cp for (base, _), cp in TYPE_ALIASES.items() if isinstance(base, type) and issubclass(base, base_class)
+    ]
+    for cp in classpaths:
+        try:
+            import_string(cp)
+        except ImportError as e:
+            raise ImportError(f"Cannot import type {cp}") from e

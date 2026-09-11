@@ -4,26 +4,25 @@ runs:
   steps:
     - name: Cache UI types
       id: cache-ui-types
-      uses: actions/cache@v4
+      uses: actions/cache@v4.3.0
       with:
-        path: ui/packages/evidently-ui-lib/src/api/types/endpoints.d.ts
-        key: ui-types-${{ runner.os }}-${{ hashFiles('./.github/**', './src/evidently/**', '!src/evidently/ui/assets/**', '!src/evidently/nbextension/**') }}
+        path: |
+          ui/packages/evidently-ui-lib/src/api/types/endpoints.d.ts
+        key: ui-types-${{ runner.os }}-${{ hashFiles('./.github/**', './src/evidently/**', '!src/evidently/**/ui/**/assets/**', '!src/evidently/nbextension/**') }}
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v5.6.0
       if: steps.cache-ui-types.outputs.cache-hit != 'true'
       with:
         python-version: "3.11"
         architecture: "x64"
-        cache: "pip"
 
     - name: Install Evidently
       if: steps.cache-ui-types.outputs.cache-hit != 'true'
-      run: pip install -e .
+      run: pip install -e '.[sql]'
       shell: bash
 
-    - name: Caclulate types
+    - name: Calculate types
       if: steps.cache-ui-types.outputs.cache-hit != 'true'
       run: |
-        litestar --app evidently.ui.app:litestar_app schema openapi --output evidently-openapi-schema.yml
-        npx openapi-typescript@6 ./evidently-openapi-schema.yml -o ui/packages/evidently-ui-lib/src/api/types/endpoints.d.ts
+        ./.github/scripts/get-types-from-back.sh
       shell: bash

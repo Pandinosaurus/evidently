@@ -1,7 +1,8 @@
-FROM python:3.10-slim
+FROM python:3.11-slim-bookworm
 ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION
+ARG INSTALL_EXTRAS="[sql]"
 LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.name="Evidently AI Service" \
       org.label-schema.url="https://github.com/evidentlyai/evidently" \
@@ -12,10 +13,8 @@ LABEL org.label-schema.build-date=$BUILD_DATE \
 LABEL maintainer="mike0sv@evidentlyai.com"
 
 
-
 WORKDIR /src
-COPY setup.py .
-COPY setupbase.py .
+COPY pyproject.toml .
 COPY README.md .
 COPY src ./src
 RUN apt-get update && \
@@ -23,11 +22,11 @@ RUN apt-get update && \
         build-essential \
         make \
         gcc \
-    && pip install . \
+    && pip install .${INSTALL_EXTRAS} \
     && apt-get remove -y --purge make gcc build-essential \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /src
 
 WORKDIR /app
-ENTRYPOINT ["evidently", "ui"]
+ENTRYPOINT ["evidently", "ui", "--host", "0.0.0.0"]

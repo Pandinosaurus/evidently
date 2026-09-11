@@ -1,8 +1,8 @@
-import React from 'react'
+import type React from 'react'
 
-import { MultiTabGraphWidgetParams } from '~/api'
+import type { MultiTabGraphWidgetParams } from '~/api'
 
-import AutoTabs from '~/components/AutoTabs'
+import AutoTabs from '~/components/Tabs/AutoTabs'
 import BigGraphWidgetContent from './BigGraphWidgetContent'
 
 const TabbedGraphWidgetContent: React.FunctionComponent<

@@ -3,11 +3,11 @@
   "description": "Evidently UI Monorepo",
   "scripts": {
     "type-check": "pnpm --workspace-concurrency 1 -r type-check",
-    "lint": "pnpm -r lint",
+    "code-check": "pnpm -r code-check",
     "build": "pnpm -r build",
-    "clean-assets-service": "rm -rf ../src/evidently/ui/assets/*",
-    "copy-assets-service": "cp -r ./service/dist/* ../src/evidently/ui/assets",
+    "clean-assets-service": "rm -rf ../src/evidently/ui/service/assets/*",
     "clean-assets-standalone": "rm -rf ../src/evidently/nbextension/static/index.js",
+    "copy-assets-service": "cp -r ./service/dist/* ../src/evidently/ui/service/assets",
     "copy-assets-standalone": "cp ./standalone/dist/index.js ../src/evidently/nbextension/static",
     "clean-assets-all": "pnpm clean-assets-service && pnpm clean-assets-standalone",
     "copy-assets-all": "pnpm copy-assets-service && pnpm copy-assets-standalone",
@@ -16,5 +16,8 @@
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"
+  },
+  "dependencies": {
+    "@biomejs/biome": "1.9.4"
   }
 }

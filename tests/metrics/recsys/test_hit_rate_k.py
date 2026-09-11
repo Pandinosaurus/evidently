@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from evidently.metrics import HitRateKMetric
-from evidently.pipeline.column_mapping import ColumnMapping
-from evidently.pipeline.column_mapping import RecomType
-from evidently.report import Report
+from evidently.legacy.metrics import HitRateKMetric
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
+from evidently.legacy.pipeline.column_mapping import RecomType
+from evidently.legacy.report import Report
 
 
 def test_hit_rate_value():
@@ -23,9 +23,9 @@ def test_hit_rate_value():
 
     results = metric.get_result()
     assert len(results.current) == 3
+    assert np.isclose(results.current[0], 0.5)
     assert np.isclose(results.current[1], 0.5)
-    assert np.isclose(results.current[2], 0.5)
-    assert np.isclose(results.current[3], 1)
+    assert np.isclose(results.current[2], 1)
 
 
 def test_hit_rate_value_judged_only():
@@ -44,9 +44,9 @@ def test_hit_rate_value_judged_only():
 
     results = metric.get_result()
     assert len(results.current) == 3
+    assert np.isclose(results.current[0], 0.3333333)
     assert np.isclose(results.current[1], 0.3333333)
-    assert np.isclose(results.current[2], 0.3333333)
-    assert np.isclose(results.current[3], 0.6666666)
+    assert np.isclose(results.current[2], 0.6666666)
 
 
 def test_hit_rate_value_judged_only_scores():
@@ -65,6 +65,6 @@ def test_hit_rate_value_judged_only_scores():
 
     results = metric.get_result()
     assert len(results.current) == 3
+    assert np.isclose(results.current[0], 0.3333333)
     assert np.isclose(results.current[1], 0.3333333)
-    assert np.isclose(results.current[2], 0.3333333)
-    assert np.isclose(results.current[3], 0.6666666)
+    assert np.isclose(results.current[2], 0.6666666)

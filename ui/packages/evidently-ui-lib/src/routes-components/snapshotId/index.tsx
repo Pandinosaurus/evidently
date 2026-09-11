@@ -1,48 +1,21 @@
-import { useLoaderData, useParams } from 'react-router-dom'
-import invariant from 'tiny-invariant'
-import { DashboardContentWidgets } from '~/components/DashboardContent'
-import DashboardContext, { CreateDashboardContextState } from '~/contexts/DashboardContext'
-import { crumbFunction } from '~/components/BreadCrumbs'
-import { LoaderData } from './data'
-import { Grid } from '@mui/material'
-import { DashboardProvider } from '~/api/types/providers/dashboard'
-import { AdditionalGraphInfo, WidgetInfo } from '~/api'
+import type { DashboardInfoModel } from '~/api/types'
+import { SnapshotWidgets } from '~/components/Widgets/WidgetsContent'
+import DashboardContext, {
+  CreateDashboardContextState,
+  type DashboardContextState
+} from '~/contexts/DashboardContext'
 
-export const handle: { crumb: crumbFunction<LoaderData>; hide: Record<string, Boolean> } = {
-  crumb: (_, { pathname, params }) => ({ to: pathname, linkText: String(params.snapshotId) }),
-  hide: {
-    snapshotList: true
-  }
+type SnapshotTemplateComponentProps = {
+  dashboardContextState: DashboardContextState
+  data: DashboardInfoModel
 }
 
-export const SnapshotTemplate = ({ api }: { api: DashboardProvider }) => {
-  const { projectId, snapshotId } = useParams()
-  invariant(projectId, 'missing projectId')
-  invariant(snapshotId, 'missing snapshotId')
+export const SnapshotTemplateComponent = (props: SnapshotTemplateComponentProps) => {
+  const { data, dashboardContextState } = props
 
-  const data = useLoaderData() as LoaderData
   return (
-    <>
-      <DashboardContext.Provider
-        value={CreateDashboardContextState({
-          getAdditionGraphData: (graphId) =>
-            api.getDashboardGraph({
-              project: { id: projectId },
-              snapshot: { id: snapshotId },
-              graph: { id: graphId }
-            }) as Promise<AdditionalGraphInfo>,
-          getAdditionWidgetData: (widgetId) =>
-            api.getDashboardGraph({
-              project: { id: projectId },
-              snapshot: { id: snapshotId },
-              graph: { id: widgetId }
-            }) as Promise<WidgetInfo>
-        })}
-      >
-        <Grid container spacing={3} direction="row" alignItems="stretch">
-          <DashboardContentWidgets widgets={data.widgets} />
-        </Grid>
-      </DashboardContext.Provider>
-    </>
+    <DashboardContext.Provider value={CreateDashboardContextState(dashboardContextState)}>
+      <SnapshotWidgets widgets={data.widgets} />
+    </DashboardContext.Provider>
   )
 }

@@ -4,23 +4,29 @@ from typing import Dict
 import pytest
 
 from evidently._pydantic_compat import parse_obj_as
-from evidently.base_metric import ColumnName
-from evidently.base_metric import InputData
-from evidently.base_metric import Metric
-from evidently.base_metric import MetricResult
-from evidently.base_metric import TResult
-from evidently.descriptors import OOV
+from evidently.legacy.base_metric import ColumnName
+from evidently.legacy.base_metric import InputData
+from evidently.legacy.base_metric import Metric
+from evidently.legacy.base_metric import MetricResult
+from evidently.legacy.base_metric import TResult
+from evidently.legacy.descriptors import OOV
+from evidently.legacy.ui.dashboards import PanelValue
+from evidently.legacy.ui.dashboards.utils import _get_hover_params
+from evidently.legacy.ui.dashboards.utils import getattr_nested
 from evidently.pydantic_utils import EvidentlyBaseModel
-from evidently.ui.dashboards import PanelValue
-from evidently.ui.dashboards.utils import _get_hover_params
-from evidently.ui.dashboards.utils import getattr_nested
 
 
 class A(MetricResult):
+    class Config:
+        alias_required = False
+
     f: str
 
 
 class B(MetricResult):
+    class Config:
+        alias_required = False
+
     f: Dict[str, A]
     f1: A
 
@@ -44,6 +50,9 @@ def test_panel_value_metric_args_ser():
 
 def test_panel_value_methic_hash_filter():
     class MyMetric(Metric[A]):
+        class Config:
+            alias_required = False
+
         arg: str
 
         def calculate(self, data: InputData) -> TResult:
@@ -59,9 +68,15 @@ def test_panel_value_methic_hash_filter():
 
 def test_metric_hover_template():
     class Nested(EvidentlyBaseModel):
+        class Config:
+            alias_required = False
+
         f: str
 
     class MyMetric(Metric[A]):
+        class Config:
+            alias_required = False
+
         arg: str
         n: Nested
 
@@ -93,6 +108,9 @@ def test_metric_hover_template():
 
 def test_metric_hover_template_column_name():
     class MyMetric(Metric[A]):
+        class Config:
+            alias_required = False
+
         column_name: ColumnName
 
         def calculate(self, data: InputData) -> TResult:

@@ -3,3 +3,4 @@ packages:
   - 'packages/*'
   - 'service'
   - 'standalone'
+  - 'html-visual-testing'

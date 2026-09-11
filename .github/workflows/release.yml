@@ -12,18 +12,19 @@ jobs:
 
     steps:
       - name: Checking out sources
-        uses: actions/checkout@v4
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v5
+        uses: actions/checkout@v4.3.1
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5.6.0
         with:
-          python-version: "3.9"
+          python-version: "3.11"
       - name: Check _version.py was updated
         env:
           PYTHONPATH: ./src
+          REF_NAME: ${{ github.ref_name }}
         run: |-
-          VERSION_TO_RELEASE=v$(python -c "from evidently import __version__; print(__version__)" || cat ../src/evidently/_version.py | grep "version_info = " | grep -Po "\d+" |  tr '\n' . | cut -c 1-5)
-          if [ "${{ github.ref_name }}" != "$VERSION_TO_RELEASE" ]; then
-            echo "Release triggered for tag ${{ github.ref_name }} but version.py contains $VERSION_TO_RELEASE"
+          VERSION_TO_RELEASE=v$(python "./src/evidently/_version.py")
+          if [ "$REF_NAME" != "$VERSION_TO_RELEASE" ]; then
+            echo "Release triggered for tag $REF_NAME but version.py contains $VERSION_TO_RELEASE"
             exit 1
           fi
 
@@ -34,19 +35,17 @@ jobs:
       - check
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.3.1
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5.6.0
         with:
-          python-version: "3.9"
-      - name: Install dependencies
-        run: pip install -r requirements.min.txt
-      - name: Install wheel
-        run: pip install wheel
+          python-version: "3.11"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4.2.0
       - name: Build a binary wheel and a source tarball
-        run: python setup.py sdist bdist_wheel
+        run: uv build
       - name: Store the distribution packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: python-package-distributions
           path: dist/
@@ -66,12 +65,12 @@ jobs:
 
     steps:
       - name: Download all the dists
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.3.0
         with:
           name: python-package-distributions
           path: dist/
       - name: Publish to PyPi
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@v1.14.2
 
   build_and_publish_docker:
     name: Build Docker image and publish it to DockerHub
@@ -85,17 +84,17 @@ jobs:
     steps:
       - id: checkout
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
       - id: login
         name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v3.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3.12.0
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v3.7.0
       - id: generate-tag
         name: Santize branch name the same way normalize function of argo-cd works
         run: |
@@ -104,16 +103,62 @@ jobs:
 
       - id: docker-push-tagged
         name: Tag Docker image and push to DockerHub
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v5.4.0
         with:
           file: docker/Dockerfile.service
           platforms: linux/amd64,linux/arm64
           push: true
           tags: evidently/evidently-service:${{ steps.generate-tag.outputs.generated-tag }},evidently/evidently-service:latest
 
+  generate-api-reference:
+    name: Generate API reference documentation from PyPI version
+    runs-on: ubuntu-22.04
+    continue-on-error: true
+    needs:
+      - publish_to_pypi
+
+    steps:
+      - uses: actions/checkout@v4.3.1
+      - name: 📚 Generate and upload API reference
+        uses: ./.github/share-actions/generate-api-reference
+        with:
+          git-revision: ${{ github.ref_name }}
+
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: api-reference
+          path: api-reference/dist
+          retention-days: 5
+
+
+  download-and-deploy-api-reference:
+    name: Download and deploy API reference documentation
+    runs-on: ubuntu-22.04
+    continue-on-error: true
+    needs:
+      - generate-api-reference
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4.3.1
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: 📥 Download API reference artifact
+        uses: actions/download-artifact@v4.3.0
+        with:
+          name: api-reference
+          path: ./artifacts/api-reference
+
+      # this action exists in `gh-pages` branch
+      - name: 📚 Download and deploy API reference documentation
+        uses: ./.github/share-actions/build-and-deploy
+
   create_release:
     name: Create release for the Tag
-    runs-on: [ubuntu-22.04]
+    runs-on: ubuntu-22.04
     needs:
       - publish_to_pypi
 
@@ -121,15 +166,15 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.3.1
       - name: Download all the dists
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.3.0
         with:
           name: python-package-distributions
           path: dist/
       - id: create_release
         name: Create Release for the Tag
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@v1.21.0
         with:
           artifacts: "dist/*"
           generateReleaseNotes: true
